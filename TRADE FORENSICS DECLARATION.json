@@ -1,0 +1,176 @@
+{
+  "family_id": "trade_forensics_v1",
+  "declared": "2026-10-18 23:45 IST, before any run on real data",
+  "question": "Karan, 18 Oct 23:30 (spec 'D & ENS TRADE-BEHAVIOUR FORENSICS'): for the top three stocks D and ENS select, what actually happens between entry and exit - and when a trade first falls into drawdown and later reaches TP, what observable sequence of price, volume, volatility, momentum, relative strength and feature changes tends to occur, and how does it differ from trades that fail to recover? His choices (23:40): TP = +5% touch as the main level and +10% as a second layer; drawdown bands -3%, -5%, -8% from entry; full study, the daily part first, the 3-minute order of events added in v1.1 when intraday_cache.py and soul_intraday_study.py arrive.",
+  "status_of_evidence": "OBSERVATIONAL. The same history the engines were built and judged on. Nothing here changes production, the paper test or any frozen file. A pattern found here is a hypothesis that needs its own declared, out-of-sample test before it could become a rule.",
+  "universe": {
+    "source": "pick_meta's research run (PM_20261017_001 unless --run says otherwise): predictions.parquet, checked against the run's outputs.sha256 and pick_meta's declaration - the same source trade_path used. It holds each engine's daily top 10 from the frozen walk-forward scores (ETFs out by the name rule + universe_exclude.txt, ranked by raw score, ties by symbol), the honest outcome, the 44 pre-entry inputs, and - for out-of-sample years only (2022 on) - pick_meta's forecasts.",
+    "selection": "each engine's ranks 1-3 on every signal day = the traded top 3 (expected 1,655 days x 3 = 4,965 per engine)",
+    "recorded_forecasts": "prob_big = P(+5% touch), prob_deep = P(-8% dip), prob_trap = P(stuck), prob_win, pred_mfe / pred_mae quantiles and pred_edge, as pick_meta recorded them; missing before 2022 (not out of sample) and never filled",
+    "overlap": "a stock picked by both engines on the same signal day is one stock-day with two trade records (flag both_engines); a stock picked again by the same engine while an earlier pick of it is still held is flagged repeat_of = the earlier trade; trades on one signal day share a day cluster. Combined tables count unique stock-days."
+  },
+  "trade": {
+    "entry": "the open of the stock's first bar after the signal day (pick_meta's honest_trade)",
+    "window": "sessions 1-5 = the entry session through the 5th session held. TP touches, drawdown bands and the groups use this window - the same window as pick_meta's mfe, mae, P(+5%) and P(-8%).",
+    "exit": "the close of session 5; a close locked at the lower band sells at the first later open that is not locked (up to 20 sessions); none -> stuck. Sessions held while locked after the 5th close are kept in the daily path (flag after_window) but do not change the groups.",
+    "net": "exit price / entry - 1 - 35 bp (gross path returns are price only)",
+    "reconciliation": "every traded pick's status, mfe, mae and net recomputed from the bars must equal pick_meta's recorded values (to 1e-9) for at least 99.5% of picks of each engine, and each engine's mean net over finished picks must equal pick_meta's to 0.01 bp; otherwise STOP before any analysis."
+  },
+  "levels": {
+    "tp": "touched when a session's high >= entry x 1.05 (main) or x 1.10 (second layer)",
+    "bands": "crossed when a session's low <= entry x (1 - 3% / 5% / 8%)",
+    "same_session": "when the first band crossing and the first TP touch fall in one session, the open decides where it can: an open already at or below the band level means the crossing came first; an open already at or above the TP level means the touch came first. Otherwise the order is UNKNOWN in v1 (group F, counted and reported), to be read from 3-minute bars in v1.1 where they exist. Never assumed in the trade's favour."
+  },
+  "groups": {
+    "A": "TP touched, with no band crossing before the touch",
+    "B": "band crossed first, TP touched later in the window",
+    "C": "band crossed, TP never touched, and a close from the low session onward (the low session's own close counts: it comes after the low) got back at least half way from the window's lowest low to the entry price (partial recovery)",
+    "D": "band crossed, TP never touched, and no close from the low session onward got half way back (no meaningful recovery)",
+    "E": "no band crossing and no TP touch",
+    "F": "unresolved: no 5th session in the data (pending), a missing bar inside the window (or NIFTY 50 lacking a day, so the window cannot be checked), a stuck exit, or (v1) a same-session order that cannot be told",
+    "cells": "every trade is classified 6 times: bands -3 / -5 / -8% x TP +5 / +10%. The headline cell is -5% / +5%. A trade is never put in B because it closed in profit: B needs the TP touch."
+  },
+  "events": {
+    "dip_start": "first session whose low is below entry",
+    "cross_<band>": "first session whose low reaches the band; its cause: GAP (that session opened at or below the band level), ENTRY DAY (session 1, after the open), LATER SESSION (session 2-5, after its open)",
+    "low": "the session of the lowest low in the window (for B: the lowest low before the TP session); occurred = that session; observable as 'lowest so far' at its close, known to be the low only at the 5th close",
+    "stabilise": "first later session that closes above the low session's close",
+    "half_back": "first close, from the low session's own close onward, at least half way from the low back to entry (recovery onset)",
+    "breakeven": "first close, from the low session's own close onward, at or above entry",
+    "tp5 / tp10": "first session whose high reaches +5% / +10%",
+    "timing": "every event carries its session number, its date and when it became observable: 'open of session k' for gap events, 'close of session k' for everything else (the time inside the session is unknown from daily bars)"
+  },
+  "alignments": {
+    "real_time": "at the close of the session in which the band was first crossed - what anyone holding the trade could see at that moment. Sample: trades whose band crossing came strictly before any TP touch (B, C and D; a B whose crossing and touch share a session is left out of this view and counted). Outcome: TP reached later (B) vs not (C or D). Only differences seen here can be 'plausibly predictive'.",
+    "hindsight": "around the low (the session of the low and the session after it). Descriptive anatomy only: nobody knows the low is the low when it happens."
+  },
+  "measures": {
+    "context_at_signal": [
+      "entry_gap",
+      "ret5_pre",
+      "ret20_pre",
+      "atr14_pct",
+      "vol_z20_pre",
+      "rel_nifty5_pre",
+      "rank",
+      "prob_big",
+      "prob_deep",
+      "prob_trap"
+    ],
+    "real_time_at_cross": [
+      "cross_session",
+      "cause_gap",
+      "cause_entry_day",
+      "close_vs_entry",
+      "clv",
+      "lower_wick",
+      "body",
+      "vol_ratio",
+      "range_ratio",
+      "rel_nifty_day",
+      "rel_nifty_cum",
+      "rel_small_cum",
+      "broke_pre_low20",
+      "closed_below_pre_low20",
+      "nifty_cum",
+      "vix_chg"
+    ],
+    "hindsight_at_low": [
+      "low_depth",
+      "low_session",
+      "cross_to_low",
+      "vol_ratio_low",
+      "vol_ratio_decline",
+      "range_ratio_low",
+      "clv_low",
+      "lower_wick_low",
+      "rel_nifty_cum_low",
+      "broke_pre_low20_low",
+      "next_ret",
+      "next_vol_ratio",
+      "next_clv",
+      "sessions_below_entry"
+    ],
+    "definitions": "entry_gap = entry open / signal close - 1; ret5_pre, ret20_pre = signal close vs 5 / 20 sessions before; atr14_pct = 14-session mean true range / signal close; vol_z20_pre = (log volume of the signal day - mean) / sd over the 20 sessions before; rel_nifty5_pre = ret5_pre - NIFTY 50's 5-session return; clv = (close - low) / (high - low); lower_wick = (min(open, close) - low) / (high - low); body = close / open - 1; vol_ratio = volume / median volume of the 20 sessions before entry; range_ratio = (high - low) / previous close over the mean of the same over the 20 sessions before entry; rel_nifty_day = the stock's close-to-close return - NIFTY 50's; rel_nifty_cum = close / entry - NIFTY 50's close / its open on the entry day; rel_small_cum = the same against NIFTY SMLCAP 250; pre_low20 = lowest low of the 20 sessions up to the signal day; vol_ratio_decline = mean vol_ratio from the entry session to the low; next_* = the session after the low."
+  },
+  "features": "the feature columns of panel_oc\\panel.parquet by the project's own list - panel_build.panel_feature_columns (features_daily's non-feature registry and forward-name rule, the panel's labels, research_common's firewall) where it can be imported, otherwise the same rules written out (identifiers, research_common.is_forbidden_feature, features_daily's FORWARD_PATTERNS) - then raw price, volume or turnover levels (no raw levels as features) and non-numeric columns out; the rule used is printed. Values on a session's date are known at that session's close (the timing contract). For the headline cell, each feature is compared B vs C+D at four times: the signal close (known at selection), the crossing close (real time), the low and the session after the low (hindsight), and labelled: differs at entry / differs at the crossing (before recovery) / differs at the low / differs only after the low / no difference. Features with less than 50% coverage at a time are listed as unreliable there, never filled. Being in the table is not validation.",
+  "statistics": {
+    "comparison": "B vs C+D (and B vs C, B vs D) per engine and cell: n, median and quartiles per group; the difference in means and the AUC with 95% intervals from circular blocks of 10 signal days (2,000 resamples for measures, 500 for features, seed 7) - trades on one day and overlapping holds move together, so days are resampled, not trades",
+    "shown": "SHOWN if the 95% interval excludes 0 (difference) or 0.5 (AUC) AND the Benjamini-Hochberg q value within its family (one engine, one cell, one alignment) is at most 0.10",
+    "common_to_both": "a yes/no pattern seen in at least 30% of B and of C+D without a SHOWN difference is listed as 'appears in both - does not distinguish'",
+    "first_picks_only": "every SHOWN difference is re-checked on trades that are not repeats; it is reported whether it holds",
+    "engines": "D vs ENS: group shares, TP rates, drawdown depth and recovery time per engine; D minus ENS on the same days (paired days, same blocks); shared stock-days vs each engine's own picks; split by the market's 20-session trend (NIFTY 50 up / down) and India VIX tercile at the signal day"
+  },
+  "hypotheses": "a candidate is any measure or feature SHOWN in the selection-time or real-time view of the headline cell. Each is written with: the behaviour, supporting cases (B trades on its side of the pooled median, or 'yes' for a yes/no measure), contradicting cases (C+D trades on the same side), the share of B on that side against the share among all B+C+D, the time order (when it is observable against when TP arrives), whether it holds in both engines and on first picks only, and the validation it needs (a declared walk-forward out-of-sample test, then the forward paper ledger). SHOWN only in hindsight = descriptive, never a candidate rule. None is implemented.",
+  "outputs": "research2\\trade_forensics\\TF_YYYYMMDD_NNN\\: report.md; summary.json; trade_universe.csv; trade_daily_path.parquet (+ .csv); trade_feature_history.parquet; trade_events.csv; recovery_cohorts.csv; data_quality_audit.csv; groups.csv; comparisons.csv; feature_summary.csv; engine_comparison.csv; market_split.csv; tp_by_depth.csv; hypotheses.csv; casebook\\<engine>_<year>.md (every trade); plots\\*.png when matplotlib is installed (or drawn later from the saved outputs by the 'plots' command, which recomputes nothing, changes no hashed file and writes plots_added.json); outputs.sha256 (every file of the run). Stage results are kept in research2\\trade_forensics\\_work\\<fingerprint>\\ so a stopped run resumes; a stopped attempt leaves STOPPED.txt in its folder. Ledger lines trade_forensics_declared / trade_forensics_run / trade_forensics_stopped in panel\\research_ledger.jsonl; a second run needs --rerun-reason. Never writes to the paper test, the panels, stage E or pick_meta folders, or any frozen file.",
+  "limits": [
+    "Observational: correlation and time order, not cause. The same history the engines were judged on.",
+    "Daily bars cannot order events inside one session; v1 marks such cases unknown (group F) and v1.1 reads 3-minute bars where they exist (from October 2021, about 94% of stock-days).",
+    "Sector relative strength needs a stock-to-sector map; only today's list exists (sectors\\ind_nifty500list.csv), so it is labelled as today's map and many small caps have none.",
+    "pick_meta's forecasts exist only from 2022; earlier trades carry none.",
+    "Many comparisons are made; the BH line limits, but does not remove, chance findings."
+  ],
+  "config": {
+    "engines": [
+      "D",
+      "ENS"
+    ],
+    "top": 3,
+    "hold": 5,
+    "lock_search_sessions": 20,
+    "cost_bps": 35,
+    "tp_levels": [
+      0.05,
+      0.1
+    ],
+    "tp_main": 0.05,
+    "dd_bands": [
+      -0.03,
+      -0.05,
+      -0.08
+    ],
+    "dd_main": -0.05,
+    "recovery_half": 0.5,
+    "pre_window": 20,
+    "index_symbols": [
+      "NIFTY50",
+      "NIFTYSMLCAP250",
+      "INDIAVIX"
+    ],
+    "boot_B": 2000,
+    "boot_B_features": 500,
+    "boot_block": 10,
+    "boot_seed": 7,
+    "fdr_q": 0.1,
+    "common_share": 0.3,
+    "min_feature_coverage": 0.5,
+    "min_reconcile_match": 0.995,
+    "reconcile_tol": 1e-09,
+    "mean_net_tol_bp": 0.01,
+    "case_plots_per_group": 6,
+    "gap_flat": 0.0025,
+    "sector_map": {
+      "Automobile and Auto Components": "NIFTYAUTO",
+      "Fast Moving Consumer Goods": "NIFTYFMCG",
+      "Information Technology": "NIFTYIT",
+      "Metals & Mining": "NIFTYMETAL",
+      "Healthcare": "NIFTYPHARMA",
+      "Realty": "NIFTYREALTY",
+      "Oil Gas & Consumable Fuels": "NIFTYENERGY",
+      "Power": "NIFTYENERGY",
+      "Financial Services": "NIFTYFINSERVICE",
+      "Media Entertainment & Publication": "NIFTYMEDIA",
+      "Consumer Durables": "NIFTYCONSUMPTION",
+      "Consumer Services": "NIFTYCONSUMPTION",
+      "Construction": "NIFTYINFRA",
+      "Construction Materials": "NIFTYINFRA",
+      "Capital Goods": "NIFTYINFRA",
+      "Telecommunication": "NIFTYINFRA"
+    },
+    "sector_file": "sectors/ind_nifty500list.csv"
+  },
+  "sector_map_note": "Industry (column 'Industry' of today's NSE Nifty 500 list) -> the cached sector index it belongs to; industries with no clear sector index (chemicals, textiles, services, diversified, forest materials, ...) and stocks outside the list get no sector. An approximation, fixed here.",
+  "amendments": [
+    "(a) 2026-10-19, before any run on real data; wording, reporting and safety only, no setting changed: half_back, breakeven and the C / D split count from the low session's own close onward (as the code always did); group F names 'calendar mismatch' apart from 'missing session'; the first-picks-only re-check also covers panel features; the feature list is panel_build's canonical one where importable (plus the forward-name patterns and turnover levels out); the report adds the recovered share B / (B+C+D) per cell, per market state and D vs ENS, each hypothesis's B share on its side and its time order; a stopped attempt leaves STOPPED.txt and a trade_forensics_stopped ledger line; outputs.sha256 and the 'plots' command (presentation only) added."
+  ]
+}

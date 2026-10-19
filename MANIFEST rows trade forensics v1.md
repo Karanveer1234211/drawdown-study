@@ -1,0 +1,15 @@
+# MANIFEST rows - trade_forensics v1 (19 Oct 2026)
+
+| file (under bigmove_deploy\open_close) | version / fingerprint | what it does | status |
+|---|---|---|---|
+| trade_forensics.py | v1 (18cce4b4bf89140e) | observational study of every D and ENS top-3 trade from entry to exit (daily bars): rebuilds each trade from the bars and stops unless it reproduces pick_meta's recorded status / mfe / mae / net; groups A-F in 6 cells (bands -3 / -5 / -8%, TP +5 / +10%); B (drawdown, then TP) against C+D at the crossing close (real time) and around the low (hindsight); the panel's features at entry, crossing, low and after; D vs ENS; casebook of every trade; candidate hypotheses (none implemented). Commands: `study`, `case`, `plots`. Writes research2\trade_forensics\TF_YYYYMMDD_NNN\ | NEW |
+| TRADE_FORENSICS_DECLARATION.json | d4be9ba52b1bebf9 (family trade_forensics_v1) | rules fixed before any real run (declared 18 Oct 23:45 IST; amendment (a) 19 Oct: wording, reporting and safety only, no setting changed) | NEW |
+| tests\test_trade_forensics.py | v1 (a16371aeeef95f1d) | suite, 73 checks (72 without matplotlib), about 2-5 minutes; must end VERIFIED (trade_forensics v1) | NEW |
+| tests\forensics_world.py | v1 (ae72b5d972537192) | synthetic markets where every trade's shape is known: planted / absent / reverse washout on the crossing session, special trades (same-session order, gaps through the band or TP, a locked close, a missing session, a pending window, a two-bar day) | NEW |
+| pick_meta.py, PICK_META_DECLARATION.json, PICK_META_CONFIDENCE_DECLARATION.json, research_common.py, tests\pick_meta_world.py | unchanged (pick_meta v1.3, 2b5732c7d0cb3e3a; declaration 4cc59d6318005ae0) | trade_forensics reads PM_20261017_001 and pick_meta's honest exit read-only; the suite uses pick_meta_world's stand-in market | unchanged - do not touch |
+
+Outputs of `trade_forensics.py study` (under %CACHE_DAILY_ROOT%\research2\trade_forensics\TF_YYYYMMDD_NNN\): report.md, summary.json, trade_universe.csv, trade_daily_path.parquet (+ .csv), trade_feature_history.parquet, trade_events.csv, recovery_cohorts.csv, data_quality_audit.csv, groups.csv, comparisons.csv, feature_summary.csv, engine_comparison.csv, market_split.csv, tp_by_depth.csv, hypotheses.csv, casebook\<engine>_<year>.md, plots\*.png (with matplotlib), outputs.sha256. Finished stages are kept in research2\trade_forensics\_work\ (a stopped run resumes); a stopped attempt leaves STOPPED.txt. Ledger: trade_forensics_declared before, trade_forensics_run after (trade_forensics_stopped on a stop) in panel\research_ledger.jsonl; a second run needs --rerun-reason. Never writes to the paper test, the panels, stage E or pick_meta folders, or any frozen file.
+
+Verified 19 Oct: VERIFIED (trade_forensics v1), 0 failures, identical numbers on pandas 2.3.3 / numpy 2.4.1 without matplotlib (Karan's set, 72 checks, 71 s) and pandas 3.0.5 / numpy 2.5.3 with matplotlib 3.11.2 (73 checks, 114 s).
+
+Pending: v1.1 (the order of events inside a session from 3-minute bars) once intraday_cache.py and soul_intraday_study.py arrive.
