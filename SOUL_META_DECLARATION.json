@@ -1,0 +1,129 @@
+{
+  "family_id": "soul_meta_v1",
+  "stage": "soul-meta",
+  "declared": "2026-09-30",
+  "status": "Declared BEFORE any code or data for the re-ranker exists. The tool will refuse to run if its settings differ from 'config'. Nothing here may be changed after results are seen. Amended before any code existed (30 Sep 2026): stage C profile and tug-of-war inputs added. Amended again before any real-data run (1 Oct 2026, approved by Karan): minimum order 25% of target, because tests showed shrunken sliver orders losing more than 100% to fixed costs and swamping the paired test.",
+  "question": "Given frozen D's top-10 candidates, can a layer that understands each stock (Soul) pick better trades, avoid traps and give each trade a better exit plan than frozen D, on the same days?",
+  "roles": "D and the ensemble stay frozen. Soul cards stay descriptive and outside this decision path. A pass creates a NEW engine variant for its own forward test; it never alters the running paper test.",
+  "firewall": [
+    "Historical research uses ONLY the point-in-time walk-forward (out-of-fold) scores of the frozen runs D = STAGED_20260928_001 and ENS = STAGEDXE_20260929_001. Production-model predictions are prohibited from historical training or evaluation.",
+    "Every Soul input for a candidate dated T uses only trades whose exit_day <= T (the soul_v4 rule); state and market inputs use sessions <= T only.",
+    "Nothing starting label_ is an input. Plan outcomes are targets only, never inputs."
+  ],
+  "candidates": "each signal day, frozen D's top 10 by walk-forward score, ETFs removed - the same universe D chose from. The re-ranker never reaches below rank 10.",
+  "inputs": [
+    "D score and rank; ensemble score and rank; D-ensemble agreement (both in the other's top 10)",
+    "Soul personality (shrunk toward the market, K = 30) and its effective trade count",
+    "Soul memory (own, cross, blend) and the weight on own",
+    "the stock's stage C profile: the 12 research-backed features of PAPER_DECLARATION config.soul.c_profile, as values and per-date percentiles",
+    "the stock's own tug of war over its last 250 sessions: overnight persistence, overnight vs the same session, average overnight and session parts",
+    "the engine's past record with the stock, shrunk toward the engine's overall record (K = 30), and its pick count",
+    "current state: the 8 canonical dimensions plus drawdown and ATR-z (per-date percentiles)",
+    "circuit state: lower- and upper-lock closes in the last 20 sessions, days since the last lower lock, frozen sessions, price under Rs 20",
+    "market state: the stage C market-level columns (M_*) on T"
+  ],
+  "exit_menu": {
+    "H3": "sell at the close of the 3rd session",
+    "H5": "sell at the close of the 5th session - the DEFAULT",
+    "H7": "sell at the close of the 7th session",
+    "H10": "sell at the close of the 10th session",
+    "BRACKET": "fixed bracket challenger: target +3 ATR, stop -2 ATR (ATR = 14-session mean true range / close on T), 5-session time limit; conservative when one session touches both"
+  },
+  "exits_all_plans": "honest: a planned close locked at the lower band sells at the first later open that is not locked; a stop cannot fill on a frozen lower-circuit session",
+  "targets": {
+    "rerank": "honest-exit net of the H5 plan, 35 bp (trap losses are inside it)",
+    "trap_<plan>": "1 if that plan's intended exit cannot be executed at its planned exit because the close is locked at the lower band (the execution simulator's locked-exit flag for that plan). A lower circuit touched during the hold is NOT a trap.",
+    "value_<plan>": "honest-exit net of each plan, 35 bp"
+  },
+  "rule": [
+    "score every candidate with the re-rank model",
+    "VETO any candidate whose predicted P(trap | H5) > 0.30",
+    "trade the top 3 remaining by re-rank score; if fewer than 3 remain, trade fewer",
+    "each trade holds H5 UNLESS another plan's predicted value exceeds H5's by >= 30 bp AND that plan's own predicted trap probability <= 0.30; then the best such plan"
+  ],
+  "why_the_veto_is_a_rail": "Traps hit 3.4% of D's picks. The re-rank target already contains each trap's loss, so trap risk is priced into every ranking; the 30% veto only removes extreme cases. 30% is an operational threshold declared in advance, not an estimate of the best one.",
+  "shrinkage": "stock-specific statistics enter only through shrinkage toward the market (K = 30 effective trades) with the evidence count as an input; no sector level - the data has no sector map, and adding one would need a new declaration",
+  "models": "HistGradientBoosting with stage D's settings: regressors for the re-rank score and each plan's value, classifiers (log loss) for each plan's trap probability; 11 models per fold",
+  "walk_forward": "expanding windows; test years 2022, 2023, 2024, 2025 and 2026 (to the last resolved session). Each fold trains on candidates from 2020-01-16 whose EVERY plan had exited at least 30 sessions before the test year starts (10-session longest hold + 20-session lock search).",
+  "evaluation": "the execution simulator with a plan per trade, primary settings: Rs 10 lakh, 1/15 of equity per position (orders shrink when cash is short, counted; an order that cash can fund at less than 25% of its target size is skipped and the slot stays in cash, counted - for D and the re-ranker alike), Zerodha costs + impact, 2% liquidity cap, integer shares, honest exits. Baseline: frozen D's primary rule on the SAME test days.",
+  "decision": "SOUL META passes only if the paired daily difference in per-trade net over D (same days) has a 98.75% block-bootstrap lower bound above zero (block 10, 10,000 resamples, seed 7). A pass makes it a new engine variant for its own forward test.",
+  "report": [
+    "D vs SOUL META vs difference: net bp per trade, CAGR, Sharpe, Sortino, max drawdown, win rate, top-5% P&L share, average holding period, trades, execution costs, capacity, trap rate, plan distribution (H3/H5/H7/H10/BRACKET), vetoes",
+    "the paired daily difference and its interval (the decision)",
+    "by year; by trap-probability bucket (descriptive - never used to change 0.30)",
+    "components, DESCRIPTIVE ONLY: re-rank alone, re-rank + veto, full system"
+  ],
+  "prohibited": [
+    "tuning the 30% veto or the 30 bp hurdle",
+    "adding, removing or changing exit plans after seeing results",
+    "stock-, sector-, rank- or regime-specific thresholds",
+    "retraining or tuning D or the ensemble; changing D's top-10 candidate universe",
+    "choosing a plan with the same day's realised outcome",
+    "selecting a regime, year or component after seeing results",
+    "adding another model because the first underperforms"
+  ],
+  "expectation": "the paired intervals are about +/-45-60 bp wide over 2022-2026: unless the gain is large, the verdict will be KEEP D. That outcome is accepted in advance.",
+  "config": {
+    "d_run": "STAGED_20260928_001",
+    "ens_run": "STAGEDXE_20260929_001",
+    "target": "label_oc_5",
+    "candidates_top": 10,
+    "trade_top": 3,
+    "plans": {
+      "H3": {
+        "hold": 3
+      },
+      "H5": {
+        "hold": 5
+      },
+      "H7": {
+        "hold": 7
+      },
+      "H10": {
+        "hold": 10
+      },
+      "BRACKET": {
+        "hold": 5,
+        "tp_atr": 3.0,
+        "sl_atr": 2.0,
+        "atr_window": 14,
+        "tie": "conservative"
+      }
+    },
+    "default_plan": "H5",
+    "veto_p": 0.3,
+    "hurdle_bp": 30.0,
+    "cost_bps": 35.0,
+    "test_years": [
+      2022,
+      2023,
+      2024,
+      2025,
+      2026
+    ],
+    "embargo_sessions": 30,
+    "lock_search": 20,
+    "soul": {
+      "halflife_days": 365,
+      "prior_k": 30.0,
+      "self_k": 20,
+      "cross_k": 50,
+      "self_shrink_k": 10.0,
+      "cross_pool": 200000,
+      "kernel_eps": 0.1,
+      "extra_dims": [
+        "D_drawdown_252",
+        "D_atr_pct_z252"
+      ],
+      "target_pct": 0.05,
+      "engine_k": 30.0
+    },
+    "interval": 0.9875,
+    "boot_B": 10000,
+    "boot_block": 10,
+    "seed": 7,
+    "c_profile_inputs": "PAPER_DECLARATION.json config.soul.c_profile (12 features)",
+    "tug_window": 250,
+    "min_order_frac": 0.25
+  }
+}
